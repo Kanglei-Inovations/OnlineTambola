@@ -18,10 +18,10 @@ if (isset($_POST['scheduled_time'], $_POST['ticket_count']) && !empty($_POST['sc
     $scheduled_time = $_POST['scheduled_time'];
     $ticket_count = (int)$_POST['ticket_count'];
     $status = 'Scheduled'; // Default status for new games
-
+    $ticket_price = (int)$_POST['ticket_price'];
     // Insert the new game into the database
-    $stmt = $conn->prepare("INSERT INTO games (started_at, status, ticket_count) VALUES (?, ?, ?)");
-    $stmt->bind_param("ssi", $scheduled_time, $status, $ticket_count);
+    $stmt = $conn->prepare("INSERT INTO games (started_at, status, ticket_count, ticket_price) VALUES (?, ?, ?,?)");
+    $stmt->bind_param("ssii", $scheduled_time, $status, $ticket_count, $ticket_price);
 
     if ($stmt->execute()) {
         $gameId = $stmt->insert_id;  // Get the inserted game ID

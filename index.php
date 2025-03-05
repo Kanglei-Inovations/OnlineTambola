@@ -24,8 +24,28 @@ while ($row = $tickets->fetch_assoc()) {
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
 <title>Tambola Game</title>
 <style>
-    table { border-collapse: collapse; margin: 10px; }
-    td { width: 40px; height: 40px; text-align: center; border: 1px solid #333; }
+    body {
+        font-family: Arial, sans-serif;
+        background-color: #f0f0f0;
+        margin: 0;
+        padding: 0;
+        text-align: center;
+    }
+    h2, h3 {
+        color: #333;
+    }
+    table {
+        border-collapse: collapse;
+        margin: 10px auto;
+        box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+    }
+    td {
+        width: 40px;
+        height: 40px;
+        text-align: center;
+        border: 1px solid #333;
+        transition: background-color 0.3s, transform 0.2s;
+    }
     .filled { background-color: #f0f0f0; }
     .marked { color: white; background-color:rgb(219, 20, 20) !important; }
 
@@ -37,13 +57,24 @@ while ($row = $tickets->fetch_assoc()) {
         }
         
     .countdown { font-size: 20px; margin: 10px 0; }
-
-.ticket-container {
-    text-align: center;
+    .ticket-container {
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    padding: 10px;
+    transition: transform 0.3s;
+    max-width: 300px;  /* Optional: Limit card width for a cleaner layout */
+    margin: auto;  /* Center align the cards */
+}
+.ticket-container:hover {
+    transform: scale(1.1);
+    cursor: pointer;
 }
 
 .ticket-container h4 {
     margin-bottom: 10px;
+    font-size: 18px;
+    color: #333;
 }
 
 .ticket-container table {
@@ -54,46 +85,119 @@ while ($row = $tickets->fetch_assoc()) {
 
 .ticket-container td {
     border: 1px solid #ddd;
-    padding: 8px;
+    padding: 5px;  /* Reduced padding for a tighter look */
     text-align: center;
+    width: 40px;  /* Ensures all cells have the same size */
+    height: 40px;  /* Ensures all cells have the same size */
+    background-color: #f9f9f9;  /* Light background for contrast */
+    transition: background-color 0.3s;
 }
 
 .ticket-container td.filled {
-    background-color: #f0f0f0;
+    
+    background-color: #e0e0e0;  /* Different shade for filled cells */
 }
 
-/* Ensure consistent table sizing */
-.ticket-container table,
-.ticket-container td {
-    max-width: 100%;
-    word-wrap: break-word;
+.ticket-container td.marked {
+    background-color: #db1414 !important;  /* Red for marked cells */
+    color: #fff;
 }
 
+.ticket-container td:hover {
+    background-color: #dcdcdc;  /* Hover effect for cells */
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .ticket-container {
+        max-width: 90%;  /* Make cards fit smaller screens */
+    }
+    .ticket-container td {
+        width: 30px;
+        height: 30px;
+    }
+}
+.countdown {
+        font-size: 24px;
+        font-weight: bold;
+        color: #ff5722;
+        text-align: center;
+        margin-top: 20px;
+        background-color: #fff;
+        padding: 10px;
+        border-radius: 8px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        display: inline-block;
+    }
 #number-board {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(40px, 1fr));
     gap: 5px;
-    margin-top: 10px;
+    margin: 10px;
     max-width: 100%;
     justify-content: center;
 }
 
 .num-cell {
-    width: 40px;
-    height: 40px;
-    text-align: center;
-    line-height: 40px;
-    border: 1px solid #333;
-    background-color: #f0f0f0;
-    cursor: pointer;
-}
+        width: 40px;
+        height: 40px;
+        text-align: center;
+        line-height: 40px;
+        border: 1px solid #333;
+        background-color: #fff;
+        cursor: pointer;
+        transition: background-color 0.3s, transform 0.2s;
+        
+    }
 
-.marked-on-board {
-    background-color: #87cefa !important;
-    color: #fff;
-    font-weight: bold;
-}
+   
+    .marked-on-board {
+        background-color: #87cefa !important;
+        color: #fff;
+        font-weight: bold;
+        transform: scale(1.1);
+    }
+    .voice-btn {
+        background-color: #4CAF50;
+        color: #fff;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 8px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: background-color 0.3s, transform 0.2s;
+        margin: 20px;
 
+    }
+    .voice-btn.inactive {
+        background-color: #f44336;
+    }
+    .voice-btn:hover {
+        transform: scale(1.05);
+    }
+   form {
+        margin: 20px;
+    }
+    form input {
+        padding: 5px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        margin-right: 5px;
+    }
+    form button {
+        padding: 5px 10px;
+        border: none;
+        background-color: #4CAF50;
+        color: #fff;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+    }
+    form button:hover {
+        background-color: #45a049;
+    }
 /* Responsive adjustments for smaller screens */
 @media (max-width: 768px) {
     .num-cell {
@@ -157,9 +261,9 @@ while ($row = $tickets->fetch_assoc()) {
 
 
 
-<button id="toggle-voice" class="voice-btn" onclick="toggleVoice()">
+<center><button id="toggle-voice" class="voice-btn" onclick="toggleVoice()">
     <i class="fas fa-volume-up"></i> Voice Active
-</button>
+</button></center>
 <form method="get">
     <input type="number" name="game_id" min="1" placeholder="Enter Game ID">
     <button type="submit">Show Tickets</button>
@@ -214,7 +318,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 });
 
-let voiceActive = true; 
+
 let calledNumbers = [];
 let currentGameId = <?php echo $_GET['game_id'];?>;
 let startTime = null;
@@ -300,6 +404,61 @@ function startCountdown(startTime) {
 }
 
 
+
+// Automatically fetch game time every 5 seconds
+setInterval(fetchGameTime(currentGameId), 5000);
+fetchGameTime(currentGameId);  // Initial fetch to start countdown immediately
+
+
+
+
+let lastMarkedIndex = -1;  // Keep track of the last marked number index
+let voiceActive = true; 
+
+// Call number with voice
+function callNumberWithVoice(num) {
+    if (!voiceActive) return Promise.resolve();  // Exit if voice is deactivated
+
+    const intros = [
+        "Calling number",
+        "Next is",
+        "Here we go",
+        "Get ready for",
+        "Watch out for",
+        "And the next number is"
+    ];
+    const intro = intros[Math.floor(Math.random() * intros.length)];
+    let phrase = "";
+
+    if (num >= 1 && num <= 9) {
+        phrase = `Single No ${num}`;
+    } else if (num >= 10 && num <= 99) {
+        const digits = num.toString().split("");
+        const tens = digits[0];
+        const ones = digits[1];
+        phrase = tens === ones ? `${tens} and ${ones}, ${num}` : `${tens} and ${ones}, ${num}`;
+    } else if (num === 100) {
+        phrase = "Century, 100!";
+    } else {
+        phrase = `Number ${num}`;
+    }
+
+    return new Promise((resolve) => {
+        let introUtterance = new SpeechSynthesisUtterance(`${intro}...`);
+        let mainUtterance = new SpeechSynthesisUtterance(phrase);
+
+        introUtterance.onend = () => {
+            setTimeout(() => {
+                window.speechSynthesis.speak(mainUtterance);
+            }, 800);
+        };
+
+        mainUtterance.onend = () => resolve();  // Resolve promise when main utterance ends
+        window.speechSynthesis.speak(introUtterance);
+        markNumbers(num);         // Mark numbers on the tickets
+        markNumberOnBoard(num);
+    });
+}
 // Function to fetch and update called numbers live
 function fetchAndUpdateCalledNumbers() {
     if (!currentGameId) {
@@ -320,9 +479,9 @@ function fetchAndUpdateCalledNumbers() {
     const calledNumbers = data.called_numbers;
     for (let i = lastMarkedIndex + 1; i < calledNumbers.length; i++) {
         const num = calledNumbers[i];
-        markNumbers(num);         // Mark numbers on the tickets
-        markNumberOnBoard(num);   // Mark numbers on the number board
         callNumberWithVoice(num); // Optional: Call number with voice
+           // Mark numbers on the number board
+        
     }
     lastMarkedIndex = calledNumbers.length - 1;
 }
@@ -330,11 +489,6 @@ function fetchAndUpdateCalledNumbers() {
     })
     .catch(error => console.error("Error fetching called numbers:", error));
 }
-// Automatically fetch game time every 5 seconds
-setInterval(fetchGameTime(currentGameId), 5000);
-fetchGameTime(currentGameId);  // Initial fetch to start countdown immediately
-let lastMarkedIndex = -1;  // Keep track of the last marked number index
-
 
 // Run fetchAndUpdateCalledNumbers every 5 seconds
 setInterval(fetchAndUpdateCalledNumbers, 5000);
@@ -351,51 +505,6 @@ function markNumberOnBoard(num) {
         numCell.classList.add('marked-on-board');
     }
 }
-
-
-// Call number with voice
-function callNumberWithVoice(num) {
-        if (!voiceActive) return;  // Exit if voice is deactivated
-
-        const intros = [
-            "Calling number",
-            "Next is",
-            "Here we go",
-            "Get ready for",
-            "Watch out for",
-            "And the next number is"
-        ];
-
-        const intro = intros[Math.floor(Math.random() * intros.length)];
-        let phrase = "";
-
-        if (num >= 1 && num <= 9) {
-            phrase = `Single No ${num}`;
-        } else if (num >= 10 && num <= 99) {
-            const digits = num.toString().split("");
-            const tens = digits[0];
-            const ones = digits[1];
-            phrase = tens === ones ? `${tens} and ${ones}, ${num}` : `${tens} and ${ones}, ${num}`;
-        } else if (num === 100) {
-            phrase = "Century, 100!";
-        } else {
-            phrase = `Number ${num}`;
-        }
-
-        let introUtterance = new SpeechSynthesisUtterance(`${intro}...`);
-        let mainUtterance = new SpeechSynthesisUtterance(phrase);
-
-        introUtterance.onend = () => {
-            setTimeout(() => {
-                window.speechSynthesis.speak(mainUtterance);
-            }, 800);
-        };
-
-        window.speechSynthesis.speak(introUtterance);
-    }
-
-
-
 
 </script>
 

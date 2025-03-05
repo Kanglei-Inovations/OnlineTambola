@@ -17,9 +17,9 @@ if ($conn->connect_error) {
 if (isset($_POST['game_id']) && is_numeric($_POST['game_id'])) {
     $game_id = (int)$_POST['game_id'];
     $scheduled_time = isset($_POST['scheduled_time']) ? $_POST['scheduled_time'] : null;
-    $status = isset($_POST['status']) ? $_POST['status'] : null;
+    $status = "Scheduled";
     $ticket_count = isset($_POST['ticket_count']) ? (int)$_POST['ticket_count'] : null;
-
+    $ticket_price = isset($_POST['ticket_price']) ? (int)$_POST['ticket_price'] : null;
     // Build the update query dynamically
     $query = "UPDATE games SET ";
     $params = [];
@@ -38,6 +38,11 @@ if (isset($_POST['game_id']) && is_numeric($_POST['game_id'])) {
     if ($ticket_count !== null) {
         $query .= "ticket_count = ?, ";
         $params[] = $ticket_count;
+        $types .= 'i';
+    }
+    if ($ticket_price !== null) {
+        $query .= "ticket_price = ?, ";
+        $params[] = $ticket_price;
         $types .= 'i';
     }
 

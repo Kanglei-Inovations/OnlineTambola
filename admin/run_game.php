@@ -2,33 +2,28 @@
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-// Database connection
-$host = 'localhost';
-$user = 'root';
-$pass = '';
-$db = 'tambola_game';
-date_default_timezone_set('Asia/Kolkata');  // E.g., 'Asia/Kolkata' or 'UTC'
+// Include database connection
+require 'db_connection.php';
 
-$conn = new mysqli($host, $user, $pass, $db);
-if ($conn->connect_error) die("Connection failed: " . $conn->connect_error);
+date_default_timezone_set('Asia/Kolkata');  // Set timezone
 
 echo "Connected to database.\n";
 
 // Fetch the latest scheduled game start time directly from the 'games' table
-$result = $conn->query("SELECT id, started_at FROM games WHERE status = 'scheduled' ORDER BY id ASC LIMIT 1");
-if ($result->num_rows > 0) {
-    $row = $result->fetch_assoc();
+$result = mysqli_query($conn, "SELECT id, started_at FROM games WHERE status = 'scheduled' ORDER BY id ASC LIMIT 1");
+if (mysqli_num_rows($result) > 0) {
+    $row = mysqli_fetch_assoc($result);
     $startTime = strtotime($row['started_at']);
     $now = time();
 
-echo "Current Time: " . date('H:i:s d-m-Y') . "\n";
+    echo "Current Time: " . date('H:i:s d-m-Y') . "\n";
 
     if ($now >= $startTime) {
         $gameId = $row['id'];
         echo "Starting game ID: $gameId\n";
 
         // Update game status to 'in_progress'
-        $conn->query("UPDATE games SET status = 'Game In progress...' WHERE id = $gameId");
+        mysqli_query($conn, "UPDATE games SET status = 'Game In progress...' WHERE id = $gameId");
 
         // Generate all 99 numbers and shuffle them
         $numbers = range(1, 99);
@@ -36,10 +31,10 @@ echo "Current Time: " . date('H:i:s d-m-Y') . "\n";
 
         // Call numbers randomly every 5-10 seconds
         foreach ($numbers as $num) {
-            $stmt = $conn->prepare("INSERT INTO called_numbers (game_id, number) VALUES (?, ?)");
-            $stmt->bind_param("ii", $gameId, $num);
-            $stmt->execute();
-            $stmt->close();
+            $stmt = mysqli_prepare($conn, "INSERT INTO called_numbers (game_id, number) VALUES (?, ?)");
+            mysqli_stmt_bind_param($stmt, "ii", $gameId, $num);
+            mysqli_stmt_execute($stmt);
+            mysqli_stmt_close($stmt);
 
             echo "Called number: $num\n";  // Print called number
 
@@ -47,7 +42,7 @@ echo "Current Time: " . date('H:i:s d-m-Y') . "\n";
         }
 
         // Update game status to 'completed' after all numbers are called
-        $conn->query("UPDATE games SET status = 'Game Completed' WHERE id = $gameId");
+        mysqli_query($conn, "UPDATE games SET status = 'Game Completed' WHERE id = $gameId");
         echo "Game ID $gameId completed.\n";
     } else {
         echo "No game scheduled to start yet.\n";
@@ -55,4 +50,6 @@ echo "Current Time: " . date('H:i:s d-m-Y') . "\n";
 } else {
     echo "No scheduled games found.\n";
 }
-$conn->close();
+
+// Close the database connection
+mysqli_close($conn);

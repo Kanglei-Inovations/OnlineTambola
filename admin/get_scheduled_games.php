@@ -14,7 +14,7 @@ if ($conn->connect_error) {
 }
 
 // Fetch scheduled games
-$sql = "SELECT id, started_at,ticket_count,status FROM games ORDER BY started_at DESC";
+$sql = "SELECT id, started_at,ticket_count,ticket_price,status FROM games ORDER BY started_at DESC";
 $result = $conn->query($sql);
 
 $games = [];
@@ -24,7 +24,8 @@ if ($result && $result->num_rows > 0) {
             'id' => $row['id'],
             'scheduled_time' => date('Y-m-d\TH:i', strtotime($row['started_at'])), // Format for datetime-local input
             'status' => $row['status'],
-            'ticket_count' => $row['ticket_count']
+            'ticket_count' => $row['ticket_count'],
+            'ticket_price' => $row['ticket_price']
         ];
 }
 
