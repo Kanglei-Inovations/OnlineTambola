@@ -202,7 +202,7 @@ async function fetchWinners(gameId) {
             const winnerContainer = document.getElementById(`winnerList-${gameId}`);
             if (winnerContainer) {
                 winnerContainer.innerHTML = res.data.winners.length 
-                    ? res.data.winners.map(w => `<li>${w.player_name} won ${w.win_type} (Ticket: ${w.ticket_id})</li>`).join('')
+                    ? res.data.winners.map(w => `<li>${w.player_name} Winning for ${w.win_type} (Ticket: ${w.ticket_id})</li>`).join('')
                     : "No winners yet.";
             }
         }

@@ -263,6 +263,30 @@
     .voice-btn.inactive i {
         transform: rotate(-90deg);
     }
+    .underline {
+    text-decoration: underline;
+}
+
+.bold {
+    font-weight: bold;
+    
+}
+.bold td {
+    font-weight: bold;
+}
+.star-highlight {
+    background-color: yellow;
+    font-weight: bold;
+}
+.star-highlight td {
+    background-color: gold;
+}
+
+.win-text {
+    font-weight: bold;
+    color: green;
+}
+
 </style>
 </head>
 <body>
@@ -310,40 +334,94 @@ if (isset($_GET['game_id']) && is_numeric($_GET['game_id'])) {
 let calledNumbers = [];
 let currentGameId = <?php echo $_GET['game_id'];?>;
 let startTime = null;
-function fetchTickets(gameId) {
-            axios.get(`fetch_tickets.php?game_id=${gameId}`)
-                .then(response => {
-                    if (response.data.error) {
-                        document.getElementById('tickets').innerHTML = `<p>${response.data.error}</p>`;
-                        return;
-                    }
-                    
-                    let ticketsHtml = '';
-                    response.data.forEach(ticket => {
-                        let ticketTable = '<table>';
-                        ticket.ticket.forEach(row => {
-                            ticketTable += '<tr>';
-                            row.forEach(num => {
-                                ticketTable += `<td class="filled" data-num="${num}">${num || ''}</td>`;
-                            });
-                            ticketTable += '</tr>';
-                        });
-                        ticketTable += '</table>';
+async function fetchTickets(gameId) {
+    try {
+        // Fetch both tickets and winners
+        const [ticketRes, winnerRes] = await Promise.all([
+            axios.get(`fetch_tickets.php?game_id=${gameId}`),
+            axios.get(`admin/get_winners.php?game_id=${gameId}`)
+        ]);
 
-                        ticketsHtml += `
-                            <div class="ticket-container">
-                                <h4>Ticket No: ${ticket.id} - (${ticket.player_name})</h4>
-                                ${ticketTable}
-                            </div>`;
-                    });
-
-                    document.getElementById('tickets').innerHTML = ticketsHtml;
-                })
-                .catch(error => {
-                    console.error("Error fetching tickets:", error);
-                    document.getElementById('tickets').innerHTML = '<p>Error loading tickets.</p>';
-                });
+        if (ticketRes.data.error) {
+            document.getElementById('tickets').innerHTML = `<p>${ticketRes.data.error}</p>`;
+            return;
         }
+
+        const winners = winnerRes.data.success ? winnerRes.data.winners : [];
+        const winnerMap = {};
+
+        // Store winning types for each ticket
+        winners.forEach(win => {
+            if (!winnerMap[win.ticket_id]) {
+                winnerMap[win.ticket_id] = [];
+            }
+            winnerMap[win.ticket_id].push(win.win_type);
+        });
+
+        let ticketsHtml = '';
+        ticketRes.data.forEach(ticket => {
+            let ticketTable = '<table>';
+
+            ticket.ticket.forEach((row, rowIndex) => {
+                ticketTable += '<tr>';
+                row.forEach(num => {
+                    let classes = "filled";
+                    
+                    // Check if the ticket is a winner
+                    if (winnerMap[ticket.id]) {
+                        let winTypes = winnerMap[ticket.id];
+
+                        // Apply underline based on win type
+                        if (winTypes.includes("Top Line") && rowIndex === 0) {
+                            classes += " underline";
+                        } else if (winTypes.includes("Middle Line") && rowIndex === 1) {
+                            classes += " underline";
+                        } else if (winTypes.includes("Bottom Line") && rowIndex === 2) {
+                            classes += " underline";
+                        } else if (winTypes.includes("Early Five")) {
+                            classes += " bold"; // You can style this differently
+                        } else if (winTypes.includes("Star") && isStarPosition(rowIndex, num)) {
+                            classes += " star-highlight";
+                        }
+                    }
+
+                    ticketTable += `<td class="${classes}" data-num="${num}">${num || ''}</td>`;
+                });
+                ticketTable += '</tr>';
+            });
+
+            ticketTable += '</table>';
+
+            // Get winning types for this ticket
+            let winText = winnerMap[ticket.id] ? `🏆 Wins: ${winnerMap[ticket.id].join(', ')}` : 'No Wins';
+
+            ticketsHtml += `
+                <div class="ticket-container">
+                    <h4>Ticket No: ${ticket.id} - (${ticket.player_name})</h4>
+                    <p class="win-text">${winText}</p>
+                    ${ticketTable}
+                </div>`;
+        });
+
+        document.getElementById('tickets').innerHTML = ticketsHtml;
+    } catch (error) {
+        console.error("Error fetching tickets:", error);
+        document.getElementById('tickets').innerHTML = '<p>Error loading tickets.</p>';
+    }
+}
+
+
+// Function to check if a number is part of the "Star" pattern
+function isStarPosition(rowIndex, num) {
+    const starPositions = [
+        [0, 0], [0, 8], // Top-left and top-right
+        [1, 4],         // Center
+        [2, 0], [2, 8]  // Bottom-left and bottom-right
+    ];
+    
+    return starPositions.some(pos => pos[0] === rowIndex);
+}
+
 
         // Fetch tickets for a specific game ID (e.g., 1)
         fetchTickets(currentGameId);

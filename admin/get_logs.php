@@ -4,7 +4,7 @@ header('Content-Type: application/json');
 // Check if game_id is provided
 if (isset($_GET['game_id']) && is_numeric($_GET['game_id'])) {
     $game_id = (int)$_GET['game_id'];
-    $logFile = "game_$game_id.log";
+    $logFile = "log/game_$game_id.log";
 
     // Check if log file exists
     if (file_exists($logFile)) {
