@@ -1,19 +1,19 @@
 <?php
-// Database connection
-$host = '127.0.0.1';
-$user = 'root';
-$pass = '';
-$db = 'tambola_game';
-$conn = new mysqli($host, $user, $pass, $db);
-if ($conn->connect_error) die("Connection failed: " . $conn->connect_error);
+// // Database connection
+// $host = '127.0.0.1';
+// $user = 'root';
+// $pass = '';
+// $db = 'tambola_game';
+// $conn = new mysqli($host, $user, $pass, $db);
+// if ($conn->connect_error) die("Connection failed: " . $conn->connect_error);
 
-$game_id = $_GET['game_id'];
-// Fetch tickets from the database
-$tickets = $conn->query("SELECT * FROM tickets where game_id=$game_id");
-$allTickets = [];
-while ($row = $tickets->fetch_assoc()) {
-    $allTickets[] = $row;
-}
+// $game_id = $_GET['game_id'];
+// // Fetch tickets from the database
+// $tickets = $conn->query("SELECT * FROM tickets where game_id=$game_id");
+// $allTickets = [];
+// while ($row = $tickets->fetch_assoc()) {
+//     $allTickets[] = $row;
+// }
 ?>
 
 <!DOCTYPE html>
@@ -153,12 +153,20 @@ while ($row = $tickets->fetch_assoc()) {
     }
 
    
-    .marked-on-board {
-        background-color: #87cefa !important;
-        color: #fff;
-        font-weight: bold;
-        transform: scale(1.1);
-    }
+    .marked-temp {
+    background-color: yellow !important;
+    color: black;
+    font-weight: bold;
+    transform: scale(1.1);
+}
+
+.marked-on-board {
+    background-color: red !important;
+    color: #fff;
+    font-weight: bold;
+    transform: scale(1.1);
+}
+
     .voice-btn {
         background-color: #4CAF50;
         color: #fff;
@@ -293,29 +301,52 @@ if (isset($_GET['game_id']) && is_numeric($_GET['game_id'])) {
 <h3>Tickets:</h3>
 
 <div id="tickets">
-    <?php foreach ($allTickets as $ticket): ?>
-        <div class="ticket-container">
-            <h4>Ticket No: <?= htmlspecialchars($ticket['id']) ?> - (<?= htmlspecialchars($ticket['player_name']) ?>) </h4>
-            <table>
-                <?php
-                $ticketData = json_decode($ticket['ticket']);
-                foreach ($ticketData as $row) {
-                    echo "<tr>";
-                    foreach ($row as $num) {
-                        echo "<td class='filled' data-num='$num'>" . ($num ?: '') . "</td>";
-                    }
-                    echo "</tr>";
-                }
-                ?>
-            </table>
-        </div>
-    <?php endforeach; ?>
+   
 </div>
 <?php }?>
 
 
 <script>
+let calledNumbers = [];
+let currentGameId = <?php echo $_GET['game_id'];?>;
+let startTime = null;
+function fetchTickets(gameId) {
+            axios.get(`fetch_tickets.php?game_id=${gameId}`)
+                .then(response => {
+                    if (response.data.error) {
+                        document.getElementById('tickets').innerHTML = `<p>${response.data.error}</p>`;
+                        return;
+                    }
+                    
+                    let ticketsHtml = '';
+                    response.data.forEach(ticket => {
+                        let ticketTable = '<table>';
+                        ticket.ticket.forEach(row => {
+                            ticketTable += '<tr>';
+                            row.forEach(num => {
+                                ticketTable += `<td class="filled" data-num="${num}">${num || ''}</td>`;
+                            });
+                            ticketTable += '</tr>';
+                        });
+                        ticketTable += '</table>';
 
+                        ticketsHtml += `
+                            <div class="ticket-container">
+                                <h4>Ticket No: ${ticket.id} - (${ticket.player_name})</h4>
+                                ${ticketTable}
+                            </div>`;
+                    });
+
+                    document.getElementById('tickets').innerHTML = ticketsHtml;
+                })
+                .catch(error => {
+                    console.error("Error fetching tickets:", error);
+                    document.getElementById('tickets').innerHTML = '<p>Error loading tickets.</p>';
+                });
+        }
+
+        // Fetch tickets for a specific game ID (e.g., 1)
+        fetchTickets(currentGameId);
 
 document.addEventListener("DOMContentLoaded", () => {
     // Create the number grid (1–99) once the DOM is fully loaded
@@ -330,9 +361,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 
-let calledNumbers = [];
-let currentGameId = <?php echo $_GET['game_id'];?>;
-let startTime = null;
+
 // Toggle voice on/off
 function toggleVoice() {
         voiceActive = !voiceActive;  // Toggle the state
@@ -525,7 +554,16 @@ fetchAndUpdateCalledNumbers();  // Initial call to start immediately
 
 function markNumbers(num) {
     let cells = document.querySelectorAll(`td[data-num='${num.toString()}']`);
-    cells.forEach(cell => cell.classList.add('marked'));
+    cells.forEach(cell => {
+        // Apply yellow highlight temporarily
+        cell.classList.add("marked-temp");
+
+        // After 1.5 seconds, switch to red
+        setTimeout(() => {
+            cell.classList.remove("marked-temp");
+            cell.classList.add("marked-on-board");
+        }, 1500);
+    });
 }
 
 function markNumberOnBoard(num) {

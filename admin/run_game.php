@@ -59,7 +59,8 @@ mysqli_close($conn);
 /**
  * Function to check for winning conditions
  */
-function checkWinners($conn, $gameId) {
+
+ function checkWinners($conn, $gameId) {
     // Fetch all called numbers for this game
     $calledNumbers = [];
     $res = mysqli_query($conn, "SELECT number FROM called_numbers WHERE game_id = $gameId");
@@ -67,11 +68,20 @@ function checkWinners($conn, $gameId) {
         $calledNumbers[] = $row['number'];
     }
 
-    // Track win types to avoid duplicate checks
+    // Fetch existing winners from the database
+    $existingWinners = [];
+    $winRes = mysqli_query($conn, "SELECT win_type, ticket_id FROM win WHERE game_id = $gameId");
+    while ($row = mysqli_fetch_assoc($winRes)) {
+        $existingWinners[$row['win_type']][] = $row['ticket_id'];
+    }
+
+    // Initialize tracking for new winners
     $winTypes = [
-        'Top Line' => false,
-        'Middle Line' => false,
-        'Bottom Line' => false
+        'Early Five' => isset($existingWinners['Early Five']),
+        'Top Line' => isset($existingWinners['Top Line']),
+        'Middle Line' => isset($existingWinners['Middle Line']),
+        'Bottom Line' => isset($existingWinners['Bottom Line']),
+        'Star' => isset($existingWinners['Star'])
     ];
 
     // Fetch all tickets for this game
@@ -79,7 +89,7 @@ function checkWinners($conn, $gameId) {
 
     while ($ticket = mysqli_fetch_assoc($tickets)) {
         $ticketId = $ticket['id'];
-        
+
         // Convert ticket numbers to array
         $ticketNumbers = json_decode($ticket['ticket'], true);
         if (!is_array($ticketNumbers)) {
@@ -87,36 +97,59 @@ function checkWinners($conn, $gameId) {
             continue;
         }
 
-        if (!$winTypes['Top Line'] && checkTopLine($ticketNumbers, $calledNumbers)) {
+        // Check each win condition only if not already won
+        if (!$winTypes['Early Five'] && !in_array($ticketId, $existingWinners['Early Five'] ?? []) && checkEarlyFive($ticketNumbers, $calledNumbers)) {
+            insertWinner($conn, 'Early Five', $gameId, $ticketId);
+            $winTypes['Early Five'] = true;
+        }
+        if (!$winTypes['Top Line'] && !in_array($ticketId, $existingWinners['Top Line'] ?? []) && checkTopLine($ticketNumbers, $calledNumbers)) {
             insertWinner($conn, 'Top Line', $gameId, $ticketId);
             $winTypes['Top Line'] = true;
         }
-
-        if (!$winTypes['Middle Line'] && checkMiddleLine($ticketNumbers, $calledNumbers)) {
+        if (!$winTypes['Middle Line'] && !in_array($ticketId, $existingWinners['Middle Line'] ?? []) && checkMiddleLine($ticketNumbers, $calledNumbers)) {
             insertWinner($conn, 'Middle Line', $gameId, $ticketId);
             $winTypes['Middle Line'] = true;
         }
-
-        if (!$winTypes['Bottom Line'] && checkBottomLine($ticketNumbers, $calledNumbers)) {
+        if (!$winTypes['Bottom Line'] && !in_array($ticketId, $existingWinners['Bottom Line'] ?? []) && checkBottomLine($ticketNumbers, $calledNumbers)) {
             insertWinner($conn, 'Bottom Line', $gameId, $ticketId);
             $winTypes['Bottom Line'] = true;
         }
+        if (!$winTypes['Star'] && !in_array($ticketId, $existingWinners['Star'] ?? []) && checkStarPattern($ticketNumbers, $calledNumbers)) {
+            insertWinner($conn, 'Star', $gameId, $ticketId);
+            $winTypes['Star'] = true;
+        }
 
         // Stop checking if all win types have been found
-        if ($winTypes['Top Line'] && $winTypes['Middle Line'] && $winTypes['Bottom Line']) {
+        if ($winTypes['Early Five'] && $winTypes['Top Line'] && $winTypes['Middle Line'] && $winTypes['Bottom Line'] && $winTypes['Star']) {
             break;
         }
     }
 }
 
+
 function insertWinner($conn, $winType, $gameId, $ticketId) {
     $dateTime = date('Y-m-d H:i:s');
-    $stmt = mysqli_prepare($conn, "INSERT INTO win (win_type, game_id, ticket_id, date_time) VALUES (?, ?, ?, ?)");
-    mysqli_stmt_bind_param($stmt, "siis", $winType, $gameId, $ticketId, $dateTime);
-    mysqli_stmt_execute($stmt);
-    mysqli_stmt_close($stmt);
-    echo "Winner Found! Type: $winType, Ticket ID: $ticketId\n";
+
+    // Check if the winner already exists in the database
+    $checkStmt = mysqli_prepare($conn, "SELECT COUNT(*) FROM win WHERE win_type = ? AND game_id = ? AND ticket_id = ?");
+    mysqli_stmt_bind_param($checkStmt, "sii", $winType, $gameId, $ticketId);
+    mysqli_stmt_execute($checkStmt);
+    mysqli_stmt_bind_result($checkStmt, $count);
+    mysqli_stmt_fetch($checkStmt);
+    mysqli_stmt_close($checkStmt);
+
+    if ($count == 0) {
+        // Insert only if the record does not already exist
+        $stmt = mysqli_prepare($conn, "INSERT INTO win (win_type, game_id, ticket_id, date_time) VALUES (?, ?, ?, ?)");
+        mysqli_stmt_bind_param($stmt, "siis", $winType, $gameId, $ticketId, $dateTime);
+        mysqli_stmt_execute($stmt);
+        mysqli_stmt_close($stmt);
+        echo "Winner Found! Type: $winType, Ticket ID: $ticketId\n";
+    } else {
+        echo "Winner Already Exists! Type: $winType, Ticket ID: $ticketId\n";
+    }
 }
+
 
 function checkTopLine($ticketNumbers, $calledNumbers) {
     $topRow = array_filter($ticketNumbers[0]);
@@ -131,6 +164,38 @@ function checkMiddleLine($ticketNumbers, $calledNumbers) {
 function checkBottomLine($ticketNumbers, $calledNumbers) {
     $bottomRow = array_filter($ticketNumbers[2]);
     return empty(array_diff($bottomRow, $calledNumbers));
+}
+function checkEarlyFive($ticketNumbers, $calledNumbers) {
+    $allNumbers = [];
+    
+    // Flatten ticket array into a single list of numbers
+    foreach ($ticketNumbers as $row) {
+        foreach ($row as $num) {
+            if ($num != 0) { // Ignore empty spaces
+                $allNumbers[] = $num;
+            }
+        }
+    }
+
+    // Count how many numbers have been called
+    $markedNumbers = array_intersect($allNumbers, $calledNumbers);
+    return count($markedNumbers) >= 5;
+}
+
+function checkStarPattern($ticketNumbers, $calledNumbers) {
+    // Star pattern: X shape on the ticket
+    $starPositions = [
+        [0, 0], [0, 8], // Top-left and top-right
+        [1, 4],         // Center
+        [2, 0], [2, 8]  // Bottom-left and bottom-right
+    ];
+
+    foreach ($starPositions as [$row, $col]) {
+        if (!in_array($ticketNumbers[$row][$col], $calledNumbers)) {
+            return false;
+        }
+    }
+    return true;
 }
 
 ?>

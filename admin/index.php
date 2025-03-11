@@ -86,6 +86,7 @@
     
 </div>
 
+
     <!-- Scheduled Games -->
     <section class="bg-white p-6 rounded-lg shadow mb-6">
         <h2 class="text-xl font-bold mb-4">Scheduled Games 🕒</h2>
@@ -96,8 +97,9 @@
                     <th class="border p-2">Scheduled Time</th>
                     <th class="border p-2">Ticket Count</th>
                     <th class="border p-2">Ticket Price</th>
+                    <th class="border p-2">Winners</th>
                     <th class="border p-2">Status</th>
-                    <th class="border p-2">Console</th>
+                    <th class="border p-2">Log</th>
                     <th class="border p-2">Actions</th>
                 </tr>
             </thead>
@@ -109,7 +111,7 @@
     <section id="ticketContainer" class="bg-gray-100 py-8 hidden">
     <div class="container mx-auto px-4" id="ticketsummary">
         <!-- Ticket Summary Section -->
-        <h2 class="text-2xl font-bold text-center mb-6 text-gray-800">🎟️ Ticket Summary</h2>
+        <h2 class="text-2xl font-bold text-center mb-6 text-gray-800">🎟️ Game Summary</h2>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
             <!-- Total Tickets -->
             <div class="bg-white p-6 rounded-lg shadow hover:shadow-lg transition">
@@ -193,6 +195,21 @@ const API = {
     updateTickets: 'updateTickets.php',
     getTicketSummary: 'get_ticket_summary.php'  // 🆕 New API for ticket summary
 };
+async function fetchWinners(gameId) {
+    try {
+        const res = await axios.get(`get_winners.php?game_id=${gameId}`);
+        if (res.data.success) {
+            const winnerContainer = document.getElementById(`winnerList-${gameId}`);
+            if (winnerContainer) {
+                winnerContainer.innerHTML = res.data.winners.length 
+                    ? res.data.winners.map(w => `<li>${w.player_name} won ${w.win_type} (Ticket: ${w.ticket_id})</li>`).join('')
+                    : "No winners yet.";
+            }
+        }
+    } catch (error) {
+        console.error("Error fetching winners:", error);
+    }
+}
 
 // Fetch Scheduled Games
 async function fetchScheduledGames() {
@@ -223,17 +240,22 @@ async function fetchScheduledGames() {
                     <input type="number" value="${game.ticket_price}" min="1" class="border p-1 rounded w-full" disabled
                            id="ticket_price-${game.id}">
                 </td>
-                <td class="border p-2">${game.status}</td>
-                <td class="border p-2" id="status-${game.id}">
-                    <div id="logContainer-${game.id}" class="text-sm overflow-auto h-20"></div>
-                    <div class="mt-1">
+                <td class="border p-2">
+    <div class="font-bold">Winners:</div>
+    <ul id="winnerList-${game.id}" class="text-sm text-green-600"></ul>
+</td>
+                <td class="border p-2">${game.status}
+                    <div class="mt-1 progress-container" id="progressContainer-${game.id}" 
+                        style="display: ${game.status === 'Game Completed' ? 'none' : 'block'};">
                         <div class="w-full bg-gray-200 rounded-full">
-                            <div id="progressBar-${game.id}" class="bg-blue-500 text-xs leading-none py-1 text-center text-white rounded-full" style="width: 0%;">
-                                0%
-                            </div>
+                            <div id="progressBar-${game.id}" class="bg-blue-500 text-xs leading-none py-1 text-center text-white rounded-full" 
+                                style="width: 0%;">0%</div>
                         </div>
                     </div>
                     <div id="countdown-${game.id}" class="text-lg font-bold text-red-500 mt-2"></div> 
+                </td>
+                <td class="border p-2" id="status-${game.id}">
+                    <div id="logContainer-${game.id}" class="text-sm overflow-auto h-20"></div>
                 </td>
                 <td class="border p-2 flex justify-center gap-2">
                     <button class="bg-yellow-500 text-white px-2 py-1 rounded hover:bg-yellow-600"
@@ -242,25 +264,72 @@ async function fetchScheduledGames() {
                             onclick="updateGame(${game.id})" id="updateBtn-${game.id}">Update</button>
                     <button class="bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600"
                             onclick="startGame(${game.id})">Start</button>
-                  
                     <button class="bg-purple-500 text-white px-2 py-1 rounded hover:bg-purple-600"
                             onclick="loadTickets(${game.id})">Show Ticket</button>
+                             <button class="bg-purple-500 text-white px-2 py-1 rounded hover:bg-purple-600"
+                            onclick="fetchWinners(${game.id})">Show Winner</button>
                 </td>
             `;
             gamesList.appendChild(row);
 
-            // Start countdown if time is remaining
+            // Start countdown if game is not started yet
             if (timeRemaining > 0) {
                 startCountdown(game.id, scheduledTime);
             } else {
                 document.getElementById(`countdown-${game.id}`).innerHTML = "Game Started!";
                 startGame(game.id);
             }
+
+            // Fetch logs and progress only for active games
+            if (game.status === "Game In progress...") {
+                fetchLogs(game.id);
+                fetchProgress(game.id);
+                if (!game.interval) {
+                    game.interval = setInterval(() => {
+                        fetchLogs(game.id);
+                        fetchProgress(game.id);
+                    }, 3000);
+                }
+            }
+       
+
         });
     } catch (error) {
         console.error('Error fetching games:', error);
     }
 }
+
+
+// Function to fetch logs and update log container
+async function fetchLogs(gameId) {
+    try {
+        const res = await axios.get(`get_logs.php?game_id=${gameId}`);
+        if (res.data.success) {
+            const logContainer = document.getElementById(`logContainer-${gameId}`);
+            const logs = res.data.logs.trim().split('\n');  
+            logContainer.innerHTML = logs.slice(-5).join('<br>') || "Waiting for updates...";
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+    } catch (error) {
+        console.error('Error fetching logs:', error);
+    }
+}
+
+// Function to fetch progress and update progress bar
+async function fetchProgress(gameId) {
+    try {
+        const res = await axios.get(`get_progress.php?game_id=${gameId}`);
+        if (res.data.success) {
+            const progressBar = document.getElementById(`progressBar-${gameId}`);
+            const progress = res.data.progress;
+            progressBar.style.width = `${progress}%`;
+            progressBar.innerText = `${progress}%`;
+        }
+    } catch (error) {
+        console.error('Error fetching progress:', error);
+    }
+}
+
 
 function startCountdown(gameId, scheduledTime) {
     const countdownElement = document.getElementById(`countdown-${gameId}`);
@@ -321,58 +390,8 @@ async function stopGame(gameId) {
     }
 }
 
-// Function to fetch logs and update log container
-async function fetchLogs(gameId) {
-    try {
-        const res = await axios.get(`get_logs.php?game_id=${gameId}`);
-        if (res.data.success) {
-            const logContainer = document.getElementById(`logContainer-${gameId}`);
-            logContainer.innerText = res.data.logs;  // Update log text
-            logContainer.scrollTop = logContainer.scrollHeight;  // Auto-scroll to bottom
-        }
-    } catch (error) {
-        console.error('Error fetching logs:', error);
-    }
-}
-// async function fetchLogs(gameId) {
-//     try {
-//         const res = await axios.get(`get_logs.php?game_id=${gameId}`);
-//         if (res.data.success) {
-//             const logContainer = document.getElementById(`logContainer-${gameId}`);
-//             const logs = res.data.logs.trim().split('\n');  // Split logs into lines
-//             const lastLog = logs[logs.length - 5];           // Get the last log line
-//             logContainer.innerText = lastLog || "Waiting for updates...";  // Show last log line or a placeholder
-//             logContainer.scrollTop = logContainer.scrollHeight;  // Auto-scroll to bottom if needed
-//         }
-//     } catch (error) {
-//         console.error('Error fetching logs:', error);
-//     }
-// }
 
 
-// Function to fetch progress and update progress bar
-async function fetchProgress(gameId) {
-    try {
-        const res = await axios.get(`get_progress.php?game_id=${gameId}`);
-        if (res.data.success) {
-            const progressBar = document.getElementById(`progressBar-${gameId}`);
-            const progress = res.data.progress;
-            progressBar.style.width = `${progress}%`;
-            progressBar.innerText = `${progress}%`;
-        }
-    } catch (error) {
-        console.error('Error fetching progress:', error);
-    }
-}
-
-// Function to start real-time updates
-function startLiveUpdates(gameId) {
-    // Fetch logs and progress every 2 seconds
-    setInterval(() => {
-        fetchLogs(gameId);
-        fetchProgress(gameId);
-    }, 1000);
-}
 // Function to start the game and begin live updates
 async function startGame(gameId) {
     document.getElementById(`countdown-${gameId}`).classList.add('hidden');

@@ -1,6 +1,6 @@
 <?php
 // Database configuration
-$host = 'localhost';         // Database host (usually 'localhost')
+$host = '127.0.0.1';         // Database host (usually 'localhost')
 $username = 'root';          // Database username
 $password = '';              // Database password
 $database = 'tambola_game';  // Replace with your database name
