@@ -1,15 +1,15 @@
 <?php
 // Database connection
-$host = 'localhost';
+$host = '127.0.0.1';
 $user = 'root';
 $pass = '';
 $db = 'tambola_game';
 $conn = new mysqli($host, $user, $pass, $db);
 if ($conn->connect_error) die("Connection failed: " . $conn->connect_error);
 
-
+$game_id = $_GET['game_id'];
 // Fetch tickets from the database
-$tickets = $conn->query("SELECT * FROM tickets");
+$tickets = $conn->query("SELECT * FROM tickets where game_id=$game_id");
 $allTickets = [];
 while ($row = $tickets->fetch_assoc()) {
     $allTickets[] = $row;
@@ -22,6 +22,8 @@ while ($row = $tickets->fetch_assoc()) {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.4.0/axios.min.js"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
 <title>Tambola Game</title>
 <style>
     body {
@@ -274,11 +276,18 @@ while ($row = $tickets->fetch_assoc()) {
 if (isset($_GET['game_id']) && is_numeric($_GET['game_id'])) {
     ?>
 <div class="countdown" id="countdown">Loading...</div>
+<div class="mt-1">
+                        <div class="w-full bg-gray-200 rounded-full">
+                            <div id="progressBar-<?php echo $_GET['game_id'];?>" class="bg-blue-500 text-xs leading-none py-1 text-center text-white rounded-full" style="width: 0%;">
+                                0%
+                            </div>
+                        </div>
+                    </div>
+<h3>Called Numbers: <span id="called"></span></h3>
 
 <!-- Number Grid for 1–99 -->
 <h3>Number Board:</h3>
 <div id="number-board"></div>
-<h3>Called Numbers: <span id="called"></span></h3>
 
 
 <h3>Tickets:</h3>
@@ -306,6 +315,8 @@ if (isset($_GET['game_id']) && is_numeric($_GET['game_id'])) {
 
 
 <script>
+
+
 document.addEventListener("DOMContentLoaded", () => {
     // Create the number grid (1–99) once the DOM is fully loaded
     const numberBoard = document.getElementById("number-board");
@@ -409,7 +420,20 @@ function startCountdown(startTime) {
 setInterval(fetchGameTime(currentGameId), 5000);
 fetchGameTime(currentGameId);  // Initial fetch to start countdown immediately
 
-
+    // Function to fetch progress and update progress bar
+    async function fetchProgress(currentGameId) {
+    try {
+        const res = await axios.get(`admin/get_progress.php?game_id=${currentGameId}`);
+        if (res.data.success) {
+            const progressBar = document.getElementById(`progressBar-${currentGameId}`);
+            const progress = res.data.progress;
+            progressBar.style.width = `${progress}%`;
+            progressBar.innerText = `${progress}%`;
+        }
+    } catch (error) {
+        console.error('Error fetching progress:', error);
+    }
+}
 
 
 let lastMarkedIndex = -1;  // Keep track of the last marked number index
@@ -461,6 +485,7 @@ function callNumberWithVoice(num) {
 }
 // Function to fetch and update called numbers live
 function fetchAndUpdateCalledNumbers() {
+    fetchProgress(currentGameId);
     if (!currentGameId) {
         console.error("Game ID not set.");
         return;
@@ -477,12 +502,16 @@ function fetchAndUpdateCalledNumbers() {
     .then(data => {
         if (data.called_numbers && data.called_numbers.length > lastMarkedIndex + 1) {
     const calledNumbers = data.called_numbers;
+    const calledNumbersDisplay = document.getElementById("called");
+
     for (let i = lastMarkedIndex + 1; i < calledNumbers.length; i++) {
         const num = calledNumbers[i];
         callNumberWithVoice(num); // Optional: Call number with voice
            // Mark numbers on the number board
         
     }
+    // Update the displayed called numbers
+    calledNumbersDisplay.textContent = calledNumbers.join(", ");
     lastMarkedIndex = calledNumbers.length - 1;
 }
 

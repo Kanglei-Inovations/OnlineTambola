@@ -203,8 +203,11 @@ async function fetchScheduledGames() {
         gamesList.innerHTML = '';
         document.getElementById('ticketContainer').classList.remove('hidden');
 
-
         games.forEach(game => {
+            const scheduledTime = new Date(game.scheduled_time).getTime();
+            const now = new Date().getTime();
+            const timeRemaining = scheduledTime - now;
+
             const row = document.createElement('tr');
             row.innerHTML = `
                 <td class="border p-2">${game.id}</td>
@@ -230,6 +233,7 @@ async function fetchScheduledGames() {
                             </div>
                         </div>
                     </div>
+                    <div id="countdown-${game.id}" class="text-lg font-bold text-red-500 mt-2"></div> 
                 </td>
                 <td class="border p-2 flex justify-center gap-2">
                     <button class="bg-yellow-500 text-white px-2 py-1 rounded hover:bg-yellow-600"
@@ -238,22 +242,44 @@ async function fetchScheduledGames() {
                             onclick="updateGame(${game.id})" id="updateBtn-${game.id}">Update</button>
                     <button class="bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600"
                             onclick="startGame(${game.id})">Start</button>
-                          
-        <button class="bg-yellow-500 text-white px-2 py-1 rounded hover:bg-red-600"
-        onclick="pauseGame(${game.id})">Pause</button>
-<button class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600"
-        onclick="stopGame(${game.id})">Stop</button>
-
+                  
                     <button class="bg-purple-500 text-white px-2 py-1 rounded hover:bg-purple-600"
                             onclick="loadTickets(${game.id})">Show Ticket</button>
                 </td>
             `;
             gamesList.appendChild(row);
+
+            // Start countdown if time is remaining
+            if (timeRemaining > 0) {
+                startCountdown(game.id, scheduledTime);
+            } else {
+                document.getElementById(`countdown-${game.id}`).innerHTML = "Game Started!";
+                startGame(game.id);
+            }
         });
     } catch (error) {
         console.error('Error fetching games:', error);
-        
     }
+}
+
+function startCountdown(gameId, scheduledTime) {
+    const countdownElement = document.getElementById(`countdown-${gameId}`);
+
+    const interval = setInterval(() => {
+        const now = new Date().getTime();
+        const timeLeft = scheduledTime - now;
+
+        if (timeLeft <= 0) {
+            clearInterval(interval);
+            countdownElement.innerHTML = "Game Started!";
+            startGame(gameId);
+        } else {
+            const hours = Math.floor((timeLeft / (1000 * 60 * 60)) % 24);
+            const minutes = Math.floor((timeLeft / (1000 * 60)) % 60);
+            const seconds = Math.floor((timeLeft / 1000) % 60);
+            countdownElement.innerHTML = `${hours}h ${minutes}m ${seconds}s`;
+        }
+    }, 1000);
 }
 async function pauseGame(gameId) {
     try {
@@ -296,32 +322,32 @@ async function stopGame(gameId) {
 }
 
 // Function to fetch logs and update log container
-// async function fetchLogs(gameId) {
-//     try {
-//         const res = await axios.get(`get_logs.php?game_id=${gameId}`);
-//         if (res.data.success) {
-//             const logContainer = document.getElementById(`logContainer-${gameId}`);
-//             logContainer.innerText = res.data.logs;  // Update log text
-//             logContainer.scrollTop = logContainer.scrollHeight;  // Auto-scroll to bottom
-//         }
-//     } catch (error) {
-//         console.error('Error fetching logs:', error);
-//     }
-// }
 async function fetchLogs(gameId) {
     try {
         const res = await axios.get(`get_logs.php?game_id=${gameId}`);
         if (res.data.success) {
             const logContainer = document.getElementById(`logContainer-${gameId}`);
-            const logs = res.data.logs.trim().split('\n');  // Split logs into lines
-            const lastLog = logs[logs.length - 5];           // Get the last log line
-            logContainer.innerText = lastLog || "Waiting for updates...";  // Show last log line or a placeholder
-            logContainer.scrollTop = logContainer.scrollHeight;  // Auto-scroll to bottom if needed
+            logContainer.innerText = res.data.logs;  // Update log text
+            logContainer.scrollTop = logContainer.scrollHeight;  // Auto-scroll to bottom
         }
     } catch (error) {
         console.error('Error fetching logs:', error);
     }
 }
+// async function fetchLogs(gameId) {
+//     try {
+//         const res = await axios.get(`get_logs.php?game_id=${gameId}`);
+//         if (res.data.success) {
+//             const logContainer = document.getElementById(`logContainer-${gameId}`);
+//             const logs = res.data.logs.trim().split('\n');  // Split logs into lines
+//             const lastLog = logs[logs.length - 5];           // Get the last log line
+//             logContainer.innerText = lastLog || "Waiting for updates...";  // Show last log line or a placeholder
+//             logContainer.scrollTop = logContainer.scrollHeight;  // Auto-scroll to bottom if needed
+//         }
+//     } catch (error) {
+//         console.error('Error fetching logs:', error);
+//     }
+// }
 
 
 // Function to fetch progress and update progress bar
@@ -349,6 +375,8 @@ function startLiveUpdates(gameId) {
 }
 // Function to start the game and begin live updates
 async function startGame(gameId) {
+    document.getElementById(`countdown-${gameId}`).classList.add('hidden');
+    console.log(`Game ${gameId} started!`);
     try {
         const response = await axios.post('start_game.php', {
             game_id: gameId
